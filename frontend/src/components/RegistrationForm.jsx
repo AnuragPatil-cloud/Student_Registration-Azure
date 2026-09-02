@@ -1,9 +1,8 @@
-import React from "react";
 import { useRegistrationForm } from "../hooks/useRegistrationForm";
 import "./RegistrationForm.css";
 import Modal from "./Modal";
 
-const RegistrationForm = () => {
+function RegistrationForm() {
   const {
     name,
     setName,
@@ -19,7 +18,6 @@ const RegistrationForm = () => {
     setBranch,
     mobileNumber,
     setMobileNumber,
-    users,
     showModal,
     setShowModal,
     handleSubmit,
@@ -29,8 +27,12 @@ const RegistrationForm = () => {
 
   return (
     <div className="registration-container">
-      <h2 style={{color:"#ff8000"}}>
-        AnuragPatil-cloud | <span style={{color:"#ffff"}} className="heading"> Student Registration</span>
+      <h2 style={{ color: "#ff8000" }}>
+        AnuragPatil-cloud |
+        <span style={{ color: "#ffff" }} className="heading">
+          {" "}
+          Student Registration
+        </span>
       </h2>
 
       <form onSubmit={handleSubmit} className="form-container">
@@ -42,6 +44,7 @@ const RegistrationForm = () => {
           className="form-input"
           required
         />
+
         <input
           type="email"
           placeholder="Email"
@@ -50,6 +53,7 @@ const RegistrationForm = () => {
           className="form-input"
           required
         />
+
         <input
           type="text"
           placeholder="Course"
@@ -58,6 +62,7 @@ const RegistrationForm = () => {
           className="form-input"
           required
         />
+
         <input
           type="text"
           placeholder="Highest Education"
@@ -66,6 +71,7 @@ const RegistrationForm = () => {
           className="form-input"
           required
         />
+
         <input
           type="number"
           placeholder="Percentage"
@@ -74,6 +80,7 @@ const RegistrationForm = () => {
           className="form-input"
           required
         />
+
         <input
           type="text"
           placeholder="Branch Or Stream"
@@ -82,6 +89,7 @@ const RegistrationForm = () => {
           className="form-input"
           required
         />
+
         <input
           type="number"
           placeholder="Mobile Number"
@@ -90,12 +98,14 @@ const RegistrationForm = () => {
           className="form-input"
           required
         />
+
         <button type="submit" className="submit-button">
           Register
         </button>
       </form>
 
       <h3>Registered Users</h3>
+
       <table className="user-table">
         <thead>
           <tr>
@@ -109,6 +119,7 @@ const RegistrationForm = () => {
             <th>Actions</th>
           </tr>
         </thead>
+
         <tbody>
           {limitedUsers.length > 0 ? (
             limitedUsers.map((user) => (
@@ -120,8 +131,10 @@ const RegistrationForm = () => {
                 <td>{user.percentage}</td>
                 <td>{user.branch}</td>
                 <td>{user.mobileNumber}</td>
+
                 <td>
                   <button
+                    type="button"
                     onClick={() => handleDelete(user.id)}
                     style={{
                       padding: "5px 10px",
@@ -145,6 +158,7 @@ const RegistrationForm = () => {
           )}
         </tbody>
       </table>
+
       {showModal && (
         <Modal
           message="Your information has been saved!"
@@ -153,6 +167,6 @@ const RegistrationForm = () => {
       )}
     </div>
   );
-};
+}
 
 export default RegistrationForm;
