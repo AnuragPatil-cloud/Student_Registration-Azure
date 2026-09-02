@@ -10,15 +10,25 @@ COPY src ./src
 
 RUN mvn clean package -DskipTests
 
-
 # ============================================
 # Stage 2: Runtime
 # ============================================
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre-alpine-3.24
 
 WORKDIR /app
 
-COPY --from=builder /app/target/student-registration-backend-0.0.1-SNAPSHOT.jar app.jar
+# Update Alpine security packages
+RUN apk update && \
+    apk upgrade --no-cache && \
+    rm -rf /var/cache/apk/*
+
+COPY --from=builder /app/target/*.jar app.jar
+
+# Run as non-root user
+RUN addgroup -S spring && \
+    adduser -S spring -G spring
+
+USER spring
 
 EXPOSE 8080
 

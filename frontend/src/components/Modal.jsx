@@ -1,17 +1,27 @@
-import React from "react";
-import "./Modal.css";
+import PropTypes from "prop-types";
 
-const Modal = ({ message, onClose }) => {
+function Modal({ message, onClose }) {
   return (
-    <div className="modal-overlay">
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-message"
+    >
       <div className="modal-content">
-        <h2>{message}</h2>
-        <button className="close-button" onClick={onClose}>
+        <p id="modal-message">{message}</p>
+
+        <button type="button" onClick={onClose}>
           Close
         </button>
       </div>
     </div>
   );
+}
+
+Modal.propTypes = {
+  message: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired,
 };
 
 export default Modal;
