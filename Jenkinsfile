@@ -4,7 +4,11 @@ pipeline {
 
     options {
         timestamps()
+
+        // Prevent two builds of this job from running at the same time
         disableConcurrentBuilds()
+
+        // Keep recent build history under control
         buildDiscarder(
             logRotator(
                 numToKeepStr: '20',
@@ -14,80 +18,122 @@ pipeline {
     }
 
     environment {
+
+        // Local image names
         BACKEND_IMAGE  = 'student-registration-backend'
         FRONTEND_IMAGE = 'student-registration-frontend'
 
+        // Jenkins credential IDs
         DOCKERHUB_CREDENTIALS = 'dockerhub-credentials'
 
+        // Security gate
         TRIVY_SEVERITY = 'HIGH,CRITICAL'
 
+        // Frontend API configuration
         VITE_API_URL = '/api'
     }
 
     stages {
 
+        // =========================================================
+        // CHECKOUT
+        // =========================================================
         stage('Checkout') {
             steps {
+
                 checkout scm
 
                 sh '''
                     echo "=========================================="
-                    echo "Git Commit:"
-                    git rev-parse HEAD
+                    echo "GIT CHECKOUT VERIFICATION"
                     echo "=========================================="
-
-                    echo "Branch:"
-                    git branch --show-current || true
 
                     echo "Repository:"
                     git remote get-url origin
+
+                    echo "Commit:"
+                    git rev-parse HEAD
+
+                    echo "Commit message:"
+                    git log -1 --pretty=%B
+
+                    echo "Branch environment:"
+                    echo "${GIT_BRANCH}"
+
+                    echo "GIT_COMMIT:"
+                    echo "${GIT_COMMIT}"
+
+                    echo "=========================================="
                 '''
             }
         }
 
+        // =========================================================
+        // BACKEND TEST
+        // =========================================================
         stage('Backend Test') {
             steps {
+
                 dir('backend') {
+
                     sh '''
                         echo "Running backend tests..."
+
                         mvn clean test
                     '''
                 }
             }
         }
 
+        // =========================================================
+        // FRONTEND LINT
+        // =========================================================
         stage('Frontend Lint') {
             steps {
+
                 dir('frontend') {
+
                     sh '''
                         echo "Installing frontend dependencies..."
+
                         npm ci
 
                         echo "Running frontend lint..."
+
                         npm run lint
                     '''
                 }
             }
         }
 
+        // =========================================================
+        // IMAGE TAGGING
+        // =========================================================
         stage('Prepare Image Tags') {
             steps {
+
                 script {
+
                     env.GIT_SHA = sh(
                         script: 'git rev-parse --short=12 HEAD',
                         returnStdout: true
                     ).trim()
 
-                    env.BUILD_TAG_VERSION = "${GIT_SHA}-${BUILD_NUMBER}"
+                    env.BUILD_TAG_VERSION =
+                        "${env.GIT_SHA}-${env.BUILD_NUMBER}"
 
-                    echo "Git SHA: ${GIT_SHA}"
-                    echo "Image version: ${BUILD_TAG_VERSION}"
+                    echo "Git SHA: ${env.GIT_SHA}"
+                    echo "Image version: ${env.BUILD_TAG_VERSION}"
                 }
             }
         }
 
+        // =========================================================
+        // BACKEND DOCKER BUILD
+        // =========================================================
         stage('Build Backend Image') {
             steps {
+
                 sh '''
                     echo "Building backend Docker image..."
 
@@ -100,8 +146,12 @@ pipeline {
             }
         }
 
+        // =========================================================
+        // FRONTEND DOCKER BUILD
+        // =========================================================
         stage('Build Frontend Image') {
             steps {
+
                 sh '''
                     echo "Building frontend Docker image..."
 
@@ -115,8 +165,12 @@ pipeline {
             }
         }
 
+        // =========================================================
+        // TRIVY BACKEND
+        // =========================================================
         stage('Trivy Backend Scan') {
             steps {
+
                 sh '''
                     echo "Scanning backend image..."
 
@@ -129,8 +183,12 @@ pipeline {
             }
         }
 
+        // =========================================================
+        // TRIVY FRONTEND
+        // =========================================================
         stage('Trivy Frontend Scan') {
             steps {
+
                 sh '''
                     echo "Scanning frontend image..."
 
@@ -143,10 +201,22 @@ pipeline {
             }
         }
 
+        // =========================================================
+        // DOCKER HUB PUSH
+        // =========================================================
         stage('Docker Hub Push') {
 
+            /*
+             * Jenkins Pipeline jobs may checkout a commit in detached
+             * HEAD mode. Therefore branch 'main' is not always reliable.
+             *
+             * This expression checks GIT_BRANCH instead.
+             */
             when {
-                branch 'main'
+                expression {
+                    return env.GIT_BRANCH == 'origin/main' ||
+                           env.GIT_BRANCH == 'main'
+                }
             }
 
             steps {
@@ -164,13 +234,20 @@ pipeline {
                         sh '''
                             set -e
 
-                            echo "Logging into Docker Hub..."
+                            echo "=========================================="
+                            echo "DOCKER HUB LOGIN"
+                            echo "=========================================="
 
                             echo "$DOCKER_PASSWORD" | docker login \
                                 --username "$DOCKER_USERNAME" \
                                 --password-stdin
 
-                            echo "Tagging backend image..."
+                            echo "Docker Hub user:"
+                            echo "$DOCKER_USERNAME"
+
+                            echo "=========================================="
+                            echo "TAGGING BACKEND"
+                            echo "=========================================="
 
                             docker tag \
                                 ${BACKEND_IMAGE}:${BUILD_TAG_VERSION} \
@@ -180,7 +257,9 @@ pipeline {
                                 ${BACKEND_IMAGE}:${GIT_SHA} \
                                 ${DOCKER_USERNAME}/${BACKEND_IMAGE}:${GIT_SHA}
 
-                            echo "Tagging frontend image..."
+                            echo "=========================================="
+                            echo "TAGGING FRONTEND"
+                            echo "=========================================="
 
                             docker tag \
                                 ${FRONTEND_IMAGE}:${BUILD_TAG_VERSION} \
@@ -190,7 +269,9 @@ pipeline {
                                 ${FRONTEND_IMAGE}:${GIT_SHA} \
                                 ${DOCKER_USERNAME}/${FRONTEND_IMAGE}:${GIT_SHA}
 
-                            echo "Pushing backend..."
+                            echo "=========================================="
+                            echo "PUSHING BACKEND"
+                            echo "=========================================="
 
                             docker push \
                                 ${DOCKER_USERNAME}/${BACKEND_IMAGE}:${BUILD_TAG_VERSION}
@@ -198,7 +279,9 @@ pipeline {
                             docker push \
                                 ${DOCKER_USERNAME}/${BACKEND_IMAGE}:${GIT_SHA}
 
-                            echo "Pushing frontend..."
+                            echo "=========================================="
+                            echo "PUSHING FRONTEND"
+                            echo "=========================================="
 
                             docker push \
                                 ${DOCKER_USERNAME}/${FRONTEND_IMAGE}:${BUILD_TAG_VERSION}
@@ -206,7 +289,9 @@ pipeline {
                             docker push \
                                 ${DOCKER_USERNAME}/${FRONTEND_IMAGE}:${GIT_SHA}
 
-                            echo "Docker Hub push completed."
+                            echo "=========================================="
+                            echo "DOCKER HUB PUSH SUCCESSFUL"
+                            echo "=========================================="
 
                             docker logout
                         '''
@@ -215,8 +300,12 @@ pipeline {
             }
         }
 
+        // =========================================================
+        // IMAGE METADATA
+        // =========================================================
         stage('Image Metadata') {
             steps {
+
                 sh '''
                     echo "=========================================="
                     echo "BACKEND IMAGE"
@@ -235,10 +324,12 @@ pipeline {
                         --format '{{.RepoTags}}'
 
                     echo "=========================================="
-                    echo "GIT SHA"
+                    echo "GIT INFORMATION"
                     echo "=========================================="
 
-                    echo "${GIT_SHA}"
+                    echo "GIT SHA: ${GIT_SHA}"
+                    echo "BUILD: ${BUILD_NUMBER}"
+                    echo "IMAGE VERSION: ${BUILD_TAG_VERSION}"
                 '''
 
                 writeFile(
@@ -252,15 +343,21 @@ Frontend Image: ${env.FRONTEND_IMAGE}:${env.BUILD_TAG_VERSION}
 """.stripIndent()
                 )
 
-                archiveArtifacts artifacts: 'build-info.txt',
+                archiveArtifacts(
+                    artifacts: 'build-info.txt',
                     fingerprint: true
+                )
             }
         }
     }
 
+    // =============================================================
+    // POST ACTIONS
+    // =============================================================
     post {
 
         success {
+
             echo '''
 ==========================================
  Jenkins Pipeline SUCCESS
@@ -269,18 +366,20 @@ Frontend Image: ${env.FRONTEND_IMAGE}:${env.BUILD_TAG_VERSION}
         }
 
         failure {
+
             echo '''
 ==========================================
  Jenkins Pipeline FAILED
 ==========================================
-Check the failed stage and fix the issue.
+Check the failed stage and console output.
 ==========================================
 '''
         }
 
         always {
+
             sh '''
-                echo "Cleaning unused Docker build cache..."
+                echo "Cleaning Docker builder cache..."
 
                 docker builder prune -f || true
             '''
