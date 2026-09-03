@@ -4,7 +4,7 @@ backend:
   replicaCount: 1
   image:
     repository: anuragpatilcloud/student-registration-backend
-    tag: "3d9a00b003d3-10"
+    tag: ccbd3d93704e-14
     pullPolicy: IfNotPresent
   service:
     port: 8080
@@ -13,7 +13,7 @@ frontend:
   replicaCount: 1
   image:
     repository: anuragpatilcloud/student-registration-frontend
-    tag: "3d9a00b003d3-10"
+    tag: ccbd3d93704e-14
     pullPolicy: IfNotPresent
   service:
     port: 80
@@ -21,7 +21,7 @@ frontend:
 mariadb:
   image:
     repository: mariadb
-    tag: "11.8"
+    tag: ccbd3d93704e-14
     pullPolicy: IfNotPresent
   service:
     port: 3306
