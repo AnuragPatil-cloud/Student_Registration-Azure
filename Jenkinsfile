@@ -299,7 +299,69 @@ pipeline {
                 }
             }
         }
+                 stage('Update GitOps Image Tags') {
+    when {
+        expression {
+            return env.GIT_BRANCH == 'origin/main' ||
+                   env.GIT_BRANCH == 'main'
+        }
+    }
+    steps {
+        script {
+            withCredentials([
+                usernamePassword(
+                    credentialsId: 'github-https',
+                    usernameVariable: 'GITHUB_USERNAME',
+                    passwordVariable: 'GITHUB_TOKEN'
+                )
+            ]) {
+                sh '''
+                    set -e
 
+                    echo "=========================================="
+                    echo "UPDATING GITOPS IMAGE TAGS"
+                    echo "=========================================="
+
+                    git config user.name "jenkins"
+                    git config user.email "jenkins@localhost"
+
+                    git fetch origin gitops
+                    git checkout -B gitops origin/gitops
+
+                    echo "Updating image tags to:"
+                    echo "  Backend : ${BUILD_TAG_VERSION}"
+                    echo "  Frontend: ${BUILD_TAG_VERSION}"
+
+                    sed -i \
+                        "s#^    tag: \".*\"#    tag: \"${BUILD_TAG_VERSION}\"#" \
+                        helm/student-registration/values.yaml
+
+                    echo "Updated values.yaml:"
+                    grep -A5 -E '^backend:|^frontend:' \
+                        helm/student-registration/values.yaml
+
+                    git add helm/student-registration/values.yaml
+
+                    if git diff --cached --quiet; then
+                        echo "No GitOps image tag change detected."
+                        exit 0
+                    fi
+
+                    git commit \
+                        -m "Update application images to ${BUILD_TAG_VERSION}"
+
+                    git push \
+                        https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/AnuragPatil-cloud/Student_Registration-Azure-DevSecOps.git \
+                        HEAD:gitops
+
+                    echo "=========================================="
+                    echo "GITOPS UPDATE SUCCESSFUL"
+                    echo "=========================================="
+                '''
+            }
+        }
+    }
+}             
         // =========================================================
         // IMAGE METADATA
         // =========================================================
