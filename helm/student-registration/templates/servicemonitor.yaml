@@ -7,9 +7,11 @@ spec:
   labelLimit: 63
   labelNameLengthLimit: 511
   labelValueLengthLimit: 1023
+
   selector:
     matchLabels:
       app: student-registration-backend
+
   endpoints:
     - port: http
       path: /actuator/prometheus
